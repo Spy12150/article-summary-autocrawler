@@ -1,0 +1,59 @@
+"""
+Google Search utility for news article scraper using Google Custom Search JSON API.
+"""
+import requests
+
+API_KEY = "[API KEY HERE]"
+SEARCH_ENGINE_ID = "82be287a7f196449f"
+
+
+def google_search(query, total_results=10):
+    """
+    Perform a Google search using the Custom Search JSON API.
+    Returns a list of result URLs, up to total_results.
+    """
+    all_links = []
+    results_per_page = 10  # Google API max per page
+    num_pages = (total_results + results_per_page - 1) // results_per_page
+    for page in range(num_pages):
+        start = page * results_per_page + 1
+        num = min(results_per_page, total_results - len(all_links))
+        url = (
+            f"https://www.googleapis.com/customsearch/v1?key={API_KEY}"
+            f"&cx={SEARCH_ENGINE_ID}&q={query}&start={start}&num={num}"
+        )
+        resp = requests.get(url)
+        if resp.status_code != 200:
+            print(f"[ERROR] Google API error: {resp.status_code} {resp.text}")
+            break
+        data = resp.json()
+        items = data.get("items", [])
+        for item in items:
+            link = item.get("link")
+            if link:
+                all_links.append(link)
+        if len(all_links) >= total_results or len(items) < num:
+            break  # Got enough or no more results
+    return all_links
+
+
+def prompt_google_search():
+    query = input("Enter a Google search keyword (e.g. 'Semiconductor news'): ").strip()
+    while not query:
+        print("Keyword cannot be empty.")
+        query = input("Enter a Google search keyword: ").strip()
+    while True:
+        try:
+            total_results = int(input("How many Google search results to fetch? (e.g. 17): ").strip())
+            if total_results < 1:
+                print("Please enter a positive integer.")
+                continue
+            break
+        except ValueError:
+            print("Please enter a valid integer.")
+    print(f"[GOOGLE] Searching for '{query}' (fetching {total_results} results)...")
+    links = google_search(query, total_results=total_results)
+    print(f"[GOOGLE] Found {len(links)} links.")
+    for i, link in enumerate(links, 1):
+        print(f"  {i}. {link}")
+    return links
