@@ -30,7 +30,9 @@ class HTMLFallbackCrawler:
                 candidate_links.add(href)
             print(f"[HTML FALLBACK] Found {len(candidate_links)} candidate article links.")
             extracted = 0
-            for article_url in list(candidate_links)[:max_articles]:
+            for article_url in list(candidate_links):
+                if len(events) >= max_articles:
+                    break
                 try:
                     article_resp = requests.get(article_url, timeout=20)
                     article_html = article_resp.text
@@ -41,17 +43,21 @@ class HTMLFallbackCrawler:
                     content = content_tag.get_text(separator=' ', strip=True) if content_tag else ''
                     date_tag = article_soup.find('time')
                     date = date_tag.get_text(strip=True) if date_tag else ''
-                    events.append({
-                        'date': date,
-                        'headline': headline,
-                        'content': content,
-                        'article_url': article_url,
-                        'source_url': url
-                    })
-                    extracted += 1
+                    # Only append if passes filter
+                    if content and len(content.strip()) >= 200 and headline and len(headline.strip()) > 0:
+                        events.append({
+                            'date': date,
+                            'headline': headline,
+                            'content': content,
+                            'article_url': article_url,
+                            'source_url': url
+                        })
+                        extracted += 1
+                        if len(events) >= max_articles:
+                            break
                 except Exception as e:
                     print(f"[HTML FALLBACK][ERROR] Failed to extract {article_url}: {e}")
-            print(f"[HTML FALLBACK] Extracted {extracted} articles from HTML fallback.")
+            print(f"[HTML FALLBACK] Extracted {len(events)} articles from HTML fallback.")
         except Exception as e:
             print(f"[HTML FALLBACK][ERROR] Failed to download or analyze HTML for {url}: {e}")
         return events

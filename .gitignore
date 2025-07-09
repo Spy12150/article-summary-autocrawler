@@ -9,3 +9,21 @@ __pycache__/
 # macos
 .DS_Store
 
+# API keys and sensitive config
+config.py
+
+# Data and downloads (potentially large)
+data/
+downloaded_htmls/
+*.json
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment variables
+.env
+

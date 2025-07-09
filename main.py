@@ -4,6 +4,7 @@ General-purpose news article scraper using trafilatura, with interactive CLI for
 import os
 import json
 import requests
+import time
 from crawlers.crunchbase import CrunchbaseCrawler
 from crawlers.trafilatura_crawler import TrafilaturaCrawler
 from crawlers.playwright_crawler import PlaywrightCrawler
@@ -64,32 +65,79 @@ def main():
     html_fallback_crawler = HTMLFallbackCrawler()
     HTML_DIR = os.path.join(os.path.dirname(__file__), 'downloaded_htmls')
     os.makedirs(HTML_DIR, exist_ok=True)
+    trafilatura_count = 0
+    playwright_count = 0
+    html_count = 0
+    start_time = time.time()
     for url, n in zip(urls, num_articles):
-        print(f"\n[SCRAPE] {url} (max {n} articles)...")
+        print(f"\n[SCRAPE] {url} (max {n} usable articles)...")
+        usable_events = []
+        used_trafilatura = 0
+        used_html = 0
+        used_playwright = 0
         # Try trafilatura first
         try:
-            events = crawler.extract_articles(url, max_articles=n)
+            events = crawler.extract_articles(url, max_articles=n*3)  # Fetch more to allow for filtering
+            filtered = [event for event in events if event.get('content') and len(event['content'].strip()) >= 200 and event.get('headline') and len(event['headline'].strip()) > 0]
+            for event in filtered:
+                if len(usable_events) >= n:
+                    break
+                usable_events.append(event)
+                used_trafilatura += 1
         except Exception as e:
             print(f"[ERROR] Trafilatura failed for {url}: {e}")
-            events = []
-        if not events:
-            print(f"[INFO] Trafilatura found no articles for {url}, trying Playwright...")
+        if len(usable_events) < n:
+            print(f"[INFO] Trafilatura found {len(usable_events)} usable articles for {url}, trying HTML fallback...")
             try:
-                events = playwright_crawler.extract_articles(url, max_articles=n)
+                events = html_fallback_crawler.extract_articles(url, max_articles=(n-len(usable_events))*3, html_dir=HTML_DIR)
+                filtered = [event for event in events if event.get('content') and len(event['content'].strip()) >= 200 and event.get('headline') and len(event['headline'].strip()) > 0]
+                for event in filtered:
+                    if len(usable_events) >= n:
+                        break
+                    usable_events.append(event)
+                    used_html += 1
+            except Exception as e:
+                print(f"[ERROR] HTML fallback failed for {url}: {e}")
+        if len(usable_events) < n:
+            print(f"[INFO] Trafilatura and HTML fallback found {len(usable_events)} usable articles for {url}, trying Playwright...")
+            try:
+                def filter_func(event):
+                    return event.get('content') and len(event['content'].strip()) >= 200 and event.get('headline') and len(event['headline'].strip()) > 0
+                events = playwright_crawler.extract_articles(url, max_articles=(n-len(usable_events)), filter_func=filter_func)
+                for event in events:
+                    if len(usable_events) >= n:
+                        break
+                    usable_events.append(event)
+                    used_playwright += 1
             except Exception as e:
                 print(f"[ERROR] Playwright failed for {url}: {e}")
-                events = []
-        if not events:
-            print(f"[INFO] Both trafilatura and Playwright failed for {url}. Using HTML fallback...")
-            events = html_fallback_crawler.extract_articles(url, max_articles=n, html_dir=HTML_DIR)
-        all_events.extend(events[:n])
+        trafilatura_count += used_trafilatura
+        html_count += used_html
+        playwright_count += used_playwright
+        all_events.extend(usable_events[:n])
     print(f"\n[SCRAPE] Total articles extracted from all sites: {len(all_events)}")
     # Filter out short or empty articles (e.g., content < 200 chars or missing headline/content)
-    filtered_events = [
-        event for event in all_events
-        if event.get('content') and len(event['content'].strip()) >= 200 and event.get('headline') and len(event['headline'].strip()) > 0
-    ]
+    filtered_events = []
+    short_or_empty_count = 0
+    per_site_counts = []
+    idx = 0
+    for url, n in zip(urls, num_articles):
+        site_events = all_events[idx:idx+n]
+        site_filtered = [
+            event for event in site_events
+            if event.get('content') and len(event['content'].strip()) >= 200 and event.get('headline') and len(event['headline'].strip()) > 0
+        ]
+        filtered_events.extend(site_filtered)
+        cut_count = len(site_events) - len(site_filtered)
+        short_or_empty_count += cut_count
+        per_site_counts.append((url, len(site_events), len(site_filtered), cut_count))
+        idx += n
     print(f"[SCRAPE] Articles after filtering short/empty content: {len(filtered_events)}")
+    print(f"[SCRAPE] Filtered out {short_or_empty_count} articles for being too short or empty.")
+    print("[SCRAPE] Per-site extraction summary:")
+    for url, total, kept, cut in per_site_counts:
+        print(f"  {url}\n    Extracted: {total}, Usable: {kept}, Filtered: {cut}")
+    print(f"[SCRAPE] Final usable articles: {len(filtered_events)} out of {len(all_events)} extracted, out of {sum(num_articles)} requested.")
     # Save to a test output file with incrementing number (no repeats) in data folder
     DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
     os.makedirs(DATA_DIR, exist_ok=True)
@@ -101,6 +149,11 @@ def main():
     with open(test_output, 'w', encoding='utf-8') as f:
         json.dump(filtered_events, f, ensure_ascii=False, indent=2)
     print(f"[SCRAPE] Saved results to {test_output}")
+    end_time = time.time()
+    print(f"[SCRAPE] Trafilatura scraped: {trafilatura_count}")
+    print(f"[SCRAPE] HTML fallback scraped: {html_count}")
+    print(f"[SCRAPE] Playwright scraped: {playwright_count}")
+    print(f"[SCRAPE] Total scraping time: {end_time - start_time:.2f} seconds")
 
 if __name__ == "__main__":
     main()

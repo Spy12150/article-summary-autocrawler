@@ -3,8 +3,15 @@ Google Search utility for news article scraper using Google Custom Search JSON A
 """
 import requests
 
-API_KEY = "[API KEY HERE]"
-SEARCH_ENGINE_ID = "82be287a7f196449f"
+# Try to import config, fall back to environment variables
+try:
+    from config import GOOGLE_API_KEY, GOOGLE_CSE_ID
+    API_KEY = GOOGLE_API_KEY
+    SEARCH_ENGINE_ID = GOOGLE_CSE_ID
+except ImportError:
+    import os
+    API_KEY = os.getenv("GOOGLE_API_KEY", "your_google_api_key_here")
+    SEARCH_ENGINE_ID = os.getenv("GOOGLE_CSE_ID", "your_google_cse_id_here")
 
 
 def google_search(query, total_results=10):
