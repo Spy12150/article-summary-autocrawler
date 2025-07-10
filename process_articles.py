@@ -16,6 +16,8 @@ try:
 except ImportError:
     INS_API_KEY = os.getenv("INS_API_KEY", "YOUR_API_KEY_HERE")
 
+print(INS_API_KEY)
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -24,8 +26,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 DEFAULT_API_KEY = INS_API_KEY
-DEFAULT_MODEL = "Deepseek-r1:32b"
-DEFAULT_ENDPOINT = "http://10.30.15.111:8080/v1/chat/completions"
+DEFAULT_MODEL = "deepseek-r132b"
+DEFAULT_ENDPOINT = "http://10.30.15.111:8080/api/chat/completions"
 
 
 def load_articles(path: str) -> List[Dict]:
@@ -59,8 +61,9 @@ def call_llm(
     api_key: str, 
     model: str = DEFAULT_MODEL,
     endpoint: str = DEFAULT_ENDPOINT,
-    max_retries: int = 3,
-    timeout: int = 30
+    max_retries: int = 1,
+    timeout: int = 120,
+    session_id: Optional[str] = None
 ) -> Optional[Dict]:
     """Call LLM endpoint for sentiment analysis and summarization.
     
@@ -71,6 +74,7 @@ def call_llm(
         endpoint: LLM endpoint URL (use 'mock' for testing)
         max_retries: Maximum number of retry attempts
         timeout: Request timeout in seconds
+        session_id: Optional session identifier
         
     Returns:
         Dictionary with 'sentiment' and 'summary' keys, or None if failed
@@ -92,8 +96,9 @@ def call_llm(
                 "role": "system",
                 "content": (
                     "You are an expert analyst of GaN semiconductor industry news. "
-                    "Return a JSON object with keys 'sentiment' "
-                    "(one of positive / neutral / negative) and 'summary' (<=80 words)."
+                    "Output ONLY the JSON object with keys 'sentiment' "
+                    "(one of positive / neutral / negative) and 'summary' (<=80 words); "
+                    "do not include any additional text, analysis, or markdown." 
                 )
             },
             {
@@ -101,69 +106,69 @@ def call_llm(
                 "content": text
             }
         ],
-        "temperature": 0.2
+        "temperature": 0.2,
+        "preset": True
     }
-    
+
+    if session_id:
+        payload["session_id"] = session_id
+
+    # Add session for better connection handling
+    session = requests.Session()
+    session.headers.update(headers)
+
     for attempt in range(max_retries):
         try:
-            # Add session for better connection handling
-            session = requests.Session()
-            session.headers.update(headers)
-            
-            response = session.post(
-                endpoint,
-                json=payload,
-                timeout=timeout
-            )
+            response = session.post(endpoint, json=payload, timeout=timeout)
             response.raise_for_status()
-            
-            # Parse response
-            response_data = response.json()
+            # Guard against empty or non-JSON responses
+            raw = response.text.strip()
+            if not raw:
+                logger.error("Empty response body from LLM endpoint")
+                return None
+            try:
+                response_data = response.json()
+            except json.JSONDecodeError:
+                logger.error(f"Invalid JSON returned by LLM endpoint: {raw}")
+                return None
             session.close()
-            
-            # Extract content from response
+
+            # Parse nested or flat result
             if 'choices' in response_data and response_data['choices']:
                 content = response_data['choices'][0]['message']['content']
-                
-                # Try to parse JSON from content
-                try:
-                    result = json.loads(content)
-                    
-                    # Validate required keys
-                    if 'sentiment' in result and 'summary' in result:
-                        # Validate sentiment value
-                        if result['sentiment'] in ['positive', 'neutral', 'negative']:
-                            return result
-                        else:
-                            logger.warning(f"Invalid sentiment value: {result['sentiment']}")
-                    else:
-                        logger.warning(f"Missing required keys in response: {result}")
-                        
-                except json.JSONDecodeError:
-                    logger.warning(f"Could not parse JSON from LLM response: {content}")
-                    
+                # Strip out any chain-of-thought or tags and extract JSON payload
+                import re
+                json_match = re.search(r"\{.*\}", content, re.DOTALL)
+                if json_match:
+                    json_payload = json_match.group(0)
+                    try:
+                        result = json.loads(json_payload)
+                    except json.JSONDecodeError:
+                        logger.error(f"Failed to parse extracted JSON payload: {json_payload}")
+                        result = None
+                else:
+                    logger.error(f"No JSON object found in LLM content: {content}")
+                    result = None
+            elif 'sentiment' in response_data and 'summary' in response_data:
+                result = response_data
             else:
                 logger.warning(f"Unexpected response format: {response_data}")
-                
-        except (requests.exceptions.RequestException, ConnectionError, 
-                requests.exceptions.ConnectionError, OSError) as e:
-            logger.warning(f"Request failed (attempt {attempt + 1}/{max_retries}): {e}")
-            
+                result = None
+
+            # Return if valid
+            if result and result.get('sentiment') in ['positive','neutral','negative'] and 'summary' in result:
+                return result
+            logger.warning(f"Invalid or missing keys in LLM response: {result}")
+        except (requests.exceptions.RequestException, ConnectionError, OSError) as e:
+            logger.warning(f"Request failed (attempt {attempt+1}/{max_retries}): {e}")
             if attempt < max_retries - 1:
-                # Exponential backoff with jitter
-                sleep_time = (2 ** attempt) + (attempt * 0.1)
-                logger.info(f"Retrying in {sleep_time:.1f} seconds...")
-                time.sleep(sleep_time)
+                time.sleep((2 ** attempt) + (attempt * 0.1))
             else:
-                logger.error(f"Max retries exceeded for article after {max_retries} attempts")
-                
-        except KeyboardInterrupt:
-            logger.error("Processing interrupted by user")
-            raise
+                logger.error("Max retries exceeded")
         except Exception as e:
             logger.error(f"Unexpected error during API call: {e}")
             break
-    
+
     return None
 
 
@@ -253,6 +258,9 @@ def process_single_article(
         processed_article['processing_status'] = 'failed'
         logger.error(f"Failed to process article: {article.get('headline', 'Unknown')}")
     
+    # Remove full content from saved output
+    processed_article.pop('content', None)
+    
     return processed_article
 
 
@@ -288,8 +296,14 @@ def process_articles(
     
     for article in tqdm(articles, desc="Processing articles"):
         processed_article = process_single_article(article, api_key, model, endpoint)
+        # Remove original content field before saving
+        processed_article.pop('content', None)
         processed_articles.append(processed_article)
-        
+
+        # Save results incrementally
+        with open(output_path, 'w', encoding='utf-8') as f:
+            json.dump(processed_articles, f, ensure_ascii=False, indent=2)
+
         if processed_article.get('processing_status') == 'success':
             success_count += 1
         else:
@@ -315,7 +329,7 @@ def main():
     
     parser.add_argument(
         "--input",
-        default="data/article_data1.json",
+        default="data/article_data.json",
         help="Path to input JSON file with articles (default: data/article_data1.json)"
     )
     
@@ -345,9 +359,6 @@ def main():
     
     args = parser.parse_args()
     
-    # Validate API key
-    if args.key == "YOUR_API_KEY_HERE" or args.key == DEFAULT_API_KEY:
-        logger.warning("Using default/placeholder API key - please set up config.py or INS_API_KEY environment variable")
     
     # Check if input file exists
     if not os.path.exists(args.input):
