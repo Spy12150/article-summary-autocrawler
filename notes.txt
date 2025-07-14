@@ -1,3 +1,0 @@
-Playwright note if it can open chromium on web server hosting
-
-Do a three prone approach to get website links

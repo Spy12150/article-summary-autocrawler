@@ -1,12 +1,11 @@
-"""
-Playwright-based article extraction for dynamic news sites (EETimes example).
-"""
 from typing import List, Dict
 from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
 import re
 import time
 import random
+
+"""Playwright-based article extraction for dynamic news sites (EETimes example)."""
 
 class PlaywrightNewsScraper:
     def extract_events(self, url: str, max_articles: int = 3) -> List[Dict]:

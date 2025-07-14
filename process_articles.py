@@ -1,6 +1,3 @@
-"""
-Phase 2: Process scraped articles with LLM for sentiment analysis and summarization.
-"""
 import json
 import os
 import time
@@ -10,13 +7,14 @@ from typing import List, Dict, Optional, Tuple
 import requests
 from tqdm import tqdm
 
-# Try to import config, fall back to environment variables
+"""Phase 2: Process scraped articles with LLM for sentiment analysis and summarization."""
+
+# try to import from config.py w/ error handling
 try:
     from config import INS_API_KEY
 except ImportError:
     INS_API_KEY = os.getenv("INS_API_KEY", "YOUR_API_KEY_HERE")
 
-print(INS_API_KEY)
 
 # Configure logging
 logging.basicConfig(

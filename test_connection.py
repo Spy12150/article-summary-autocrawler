@@ -1,11 +1,9 @@
-#!/usr/bin/env python3
-"""
-Test connection to the LLM endpoint to debug connectivity issues
-"""
 import requests
 import json
 import time
 import sys
+
+"""Test connection to the LLM endpoint to debug connectivity issues"""
 
 def test_endpoint_connection(endpoint="http://10.30.15.111:8080/v1/chat/completions"):
     """Test basic connectivity to the endpoint"""

@@ -2,6 +2,11 @@ from typing import List, Dict
 import requests
 from bs4 import BeautifulSoup
 
+"""
+Crawler that extracts and downloads the HTML of article for extraction
+Takes extra memory and more time than trafilatura, but does not require GUI and is faster than playwright
+"""
+
 class HTMLFallbackCrawler:
     def extract_articles(self, url: str, max_articles: int = 3, html_dir: str = "downloaded_htmls") -> List[Dict]:
         events = []

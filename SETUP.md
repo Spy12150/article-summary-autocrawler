@@ -1,24 +1,23 @@
-# Setup Guide for Running on Network-Connected Computer
+# Setup Guide
 
-This guide explains how to set up and run the semiconductor news scraper on a computer with network access to the internal LLM endpoint.
+This guide explains how to set up and run the article scraper on a new machine.
 
-## 📋 **Prerequisites**
+## Prerequisites
 
 - Python 3.8 or higher
-- Network access to `10.30.15.111:8080`
-- Git (for cloning the repository)
+- Network access to `10.30.15.111:8080` (for LLM processing)
+- Git for cloning the repository
 
-## 🚀 **Setup Steps**
+## Installation Steps
 
-### 1. **Clone the Repository**
+### 1. Clone Repository
 ```bash
 git clone <your-github-repo-url>
-cd "Innosci Internship Projects"
+cd article-summary-autocrawler
 ```
 
-### 2. **Set Up Python Environment**
+### 2. Create Virtual Environment
 ```bash
-# Create virtual environment
 python -m venv .venv
 
 # Activate virtual environment
@@ -28,17 +27,17 @@ python -m venv .venv
 source .venv/bin/activate
 ```
 
-### 3. **Install Dependencies**
+### 3. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-If `requirements.txt` doesn't exist, install manually:
+If `requirements.txt` is missing, install manually:
 ```bash
-pip install requests trafilatura playwright beautifulsoup4 tqdm
+pip install requests trafilatura playwright beautifulsoup4 tqdm lxml
 ```
 
-### 4. **Configure API Keys**
+### 4. Configure API Keys
 ```bash
 # Copy the example config file
 cp config.example.py config.py
@@ -47,7 +46,7 @@ cp config.example.py config.py
 nano config.py  # or use your preferred editor
 ```
 
-Update `config.py` with:
+Update `config.py` with your API keys:
 ```python
 # LLM API Configuration
 INS_API_KEY = "your_actual_ins_api_key_here"
@@ -55,48 +54,139 @@ INS_API_KEY = "your_actual_ins_api_key_here"
 # Google Custom Search API Configuration  
 GOOGLE_API_KEY = "your_google_api_key_here"
 GOOGLE_CSE_ID = "your_google_cse_id_here"
+
+# Alternative LLM endpoints (optional)
+OPENAI_API_KEY = "your_openai_api_key_here"
 ```
 
-### 5. **Test Network Connectivity**
+### 5. Test Network Connectivity
 ```bash
 # Test the LLM endpoint
 python test_connection.py
 ```
 
-You should see:
+Expected output:
 ```
-✅ Main endpoint is accessible
+Main endpoint is accessible
 ```
 
-## 🏃 **Running the Pipeline**
-
-### **Phase 1: Scrape Articles**
+### 6. Install Playwright Browser (if needed)
 ```bash
-# Interactive mode - manual URLs
-python main.py
-
-# Or with Google search
-python main.py
-# Choose option 2, enter keywords like "semiconductor news"
+# Install Playwright browsers
+playwright install chromium
 ```
 
-### **Phase 2: Process with LLM**
+## Running the Pipeline
+
+### Phase 1: Scrape Articles
+```bash
+# Interactive mode with manual URLs
+python main.py
+
+# Choose option 1 for manual URLs or option 2 for Google search
+```
+
+### Phase 2: Process with LLM
 ```bash
 # Process the latest scraped articles
 python process_articles.py --input data/article_data1.json
 
 # Or specify exact files
 python process_articles.py \
-    --input data/article_data9.json \
+    --input data/article_data1.json \
     --output data/processed_articles.json
 ```
 
-## 🔧 **Troubleshooting**
+## Verification
 
-### **If LLM Endpoint Still Fails:**
+### Test Scraping
 ```bash
-# Test with mock mode first
+# Run a quick test
+python main.py
+# Enter a single URL like: https://www.example-news.com
+# Request 1-2 articles to test functionality
+```
+
+### Test Processing
+```bash
+# Test with mock mode (doesn't require LLM endpoint)
 python process_articles.py --endpoint 'mock' --input data/article_data1.json
+```
+
+## Directory Structure After Setup
+
+```
+article-summary-autocrawler/
+├── .venv/                     # Virtual environment
+├── config.py                  # Your API keys (gitignored)
+├── data/                      # Created automatically
+│   ├── article_data1.json     # Scraped articles
+│   └── articles_processed.json # LLM-processed articles
+├── downloaded_htmls/          # HTML cache (created automatically)
+└── [other project files]
+```
+
+## Common Setup Issues
+
+### Python Environment
+- Ensure Python 3.8+ is installed: `python --version`
+- Use virtual environment to avoid conflicts
+- On Windows, use `python` instead of `python3`
+
+### Network Issues
+- Test basic connectivity: `ping 10.30.15.111`
+- Verify VPN connection if using internal network
+- Check firewall settings for port 8080
+
+### Missing Dependencies
+- Install missing packages: `pip install [package-name]`
+- Update pip if needed: `pip install --upgrade pip`
+- For Playwright issues, run: `playwright install`
+
+### API Key Issues
+- Verify keys are correctly formatted in `config.py`
+- Check that `config.py` is not tracked by git: `git status`
+- Test Google Search API with a simple query
+
+## Alternative Configurations
+
+### Using Different LLM Endpoints
+```bash
+# OpenAI API
+python process_articles.py \
+    --endpoint 'https://api.openai.com/v1/chat/completions' \
+    --model 'gpt-4o' \
+    --key 'your-openai-api-key'
+
+# Local LLM server
+python process_articles.py \
+    --endpoint 'http://localhost:8080/v1/chat/completions' \
+    --model 'local-model'
+```
+
+### Mock Mode for Development
+```bash
+# Use mock mode for testing without real LLM
+python process_articles.py --endpoint 'mock' --input data/article_data1.json
+```
+
+## Security Checklist
+
+Before deployment:
+- [ ] `config.py` is in `.gitignore`
+- [ ] No API keys in source code
+- [ ] `config.example.py` is included for others
+- [ ] Test that `git status` doesn't show `config.py`
+
+## Next Steps
+
+After successful setup:
+1. Run the full pipeline on sample data
+2. Monitor logs for any errors
+3. Test with different news sources
+4. Schedule regular runs if needed
+
+For troubleshooting, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
 # Check network connectivity
 ping 10.30.15.111
@@ -122,7 +212,7 @@ export GOOGLE_CSE_ID="your_cse_id_here"
 python process_articles.py
 ```
 
-## 📊 **Expected Output**
+## Expected output
 
 ### **Phase 1 Output:**
 - `data/article_dataN.json` (where N increments)
@@ -132,35 +222,4 @@ python process_articles.py
 - `data/articles_processed.json` with sentiment and summaries
 - Console output showing processing progress
 
-## 🔒 **Security Notes**
 
-- **Never commit `config.py`** - it's in `.gitignore`
-- **Use `config.example.py`** as a template for others
-- **Rotate API keys** if they're accidentally exposed
-- **Use environment variables** in production environments
-
-## 📈 **Performance Tips**
-
-- **Batch Processing**: Process articles in smaller batches if memory is limited
-- **Network Timeouts**: Increase timeout if network is slow:
-  ```bash
-  # Edit process_articles.py, increase timeout parameter
-  ```
-- **Parallel Processing**: For large datasets, consider splitting files and running multiple processes
-
-## 🐛 **Common Issues**
-
-| Issue | Solution |
-|-------|----------|
-| `ImportError: No module named 'config'` | Copy `config.example.py` to `config.py` |
-| `Connection refused` | Check VPN/network access to `10.30.15.111` |
-| `API key invalid` | Verify API key in `config.py` |
-| `FileNotFoundError` | Run Phase 1 first to generate article data |
-
-## 📞 **Support**
-
-If you encounter issues:
-1. Check the `TROUBLESHOOTING.md` file
-2. Run `python test_connection.py` for diagnostics
-3. Verify `config.py` has correct API keys
-4. Ensure you're on the correct network for LLM access

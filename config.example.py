@@ -1,5 +1,5 @@
-# Example configuration file - copy to config.py and add your real API keys
-# This file shows the structure but doesn't contain real credentials
+# Create a config.py and use your own API keys
+# This is a example file as config.py is included in .gitignore
 
 # LLM API Configuration
 INS_API_KEY = "your_ins_api_key_here"
@@ -8,5 +8,5 @@ INS_API_KEY = "your_ins_api_key_here"
 GOOGLE_API_KEY = "your_google_api_key_here"
 GOOGLE_CSE_ID = "your_google_cse_id_here"
 
-# Alternative LLM endpoints (if needed)
+# Alternative LLM endpoints
 OPENAI_API_KEY = "your_openai_api_key_here"

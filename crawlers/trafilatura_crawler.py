@@ -4,6 +4,8 @@ from bs4 import BeautifulSoup
 import requests
 from urllib.parse import urljoin, urlparse
 
+"""The default crawler, the fastest and most efficient, good enough for most articles"""
+
 class TrafilaturaCrawler:
     def extract_articles(self, url: str, max_articles: int = 3) -> List[Dict]:
         events = []

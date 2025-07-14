@@ -1,7 +1,9 @@
-"""
-Google Search utility for news article scraper using Google Custom Search JSON API.
-"""
 import requests
+
+"""
+This file allows the user to input search term and the program will use google custom search API to access the links
+"""
+
 
 # Try to import config, fall back to environment variables
 try:

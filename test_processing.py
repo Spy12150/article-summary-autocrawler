@@ -1,11 +1,9 @@
-#!/usr/bin/env python3
-"""
-Test script for process_articles.py functionality
-"""
 import json
 import os
 import sys
 from process_articles import load_articles, process_single_article
+
+"""Test script for process_articles.py functionality"""
 
 def test_basic_functionality():
     """Test basic loading and processing functionality"""

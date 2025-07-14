@@ -6,6 +6,10 @@ import time
 import random
 from urllib.parse import urljoin
 
+"""The fallback crawler, is able to bypass the anti-scraper verification on some sites whereas the other 2 crawlers fail
+However is only effective with headless mode off (opens an instance of chromium on your GUI)
+Also the slowest because it has to load every page individually, thus used last"""
+
 class PlaywrightCrawler:
     def extract_articles(self, url: str, max_articles: int = 3, filter_func=None) -> List[Dict]:
         events = []
@@ -25,7 +29,7 @@ class PlaywrightCrawler:
             time.sleep(2)
             article_info = []
             seen_urls = set()
-            # IMPROVED: Find <a> tags with likely article links, including those with h2/h3 children or special classes
+            # Find <a> tags with likely article links
             links = page.query_selector_all('a, a.article-links, a[target], a[href]')
             for link in links:
                 href = link.get_attribute('href')
@@ -42,7 +46,7 @@ class PlaywrightCrawler:
                     is_article = True
                 if 'article-links' in class_attr:
                     is_article = True
-                # Check for h2/h3 child (headline in link)
+                # Check for h2/h3 child 
                 if link.query_selector('h2, h3'):
                     is_article = True
                 # Check for parent with resource/card class

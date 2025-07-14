@@ -1,18 +1,32 @@
-"""
-General-purpose news article scraper using trafilatura, with interactive CLI for user input.
-"""
 import os
 import json
 import requests
 import time
-from crawlers.crunchbase import CrunchbaseCrawler
 from crawlers.trafilatura_crawler import TrafilaturaCrawler
 from crawlers.playwright_crawler import PlaywrightCrawler
 from crawlers.html_fallback_crawler import HTMLFallbackCrawler
 from playwright_scraper import PlaywrightNewsScraper
 from bs4 import BeautifulSoup
 
+"""Entry point for web scraper, which accesses all three crawlers and logs progress for the user"""
+
+# TODO:
+# Single-threaded: No concurrent processing for multiple sites
+# Memory usage: Loads all articles into memory at once
+# No caching: Re-scrapes same URLs every time
+
+# Time handling: Allow user to control time value handling in future
+# Error handling: Using print statements instead of proper logging
+
+# Increase endpoint count: consider scraping multiple or multiple LLM endpoints at the same time
+# API limiting: a potential concern but likely not
+# API verification: verify api keys before processing
+
+# LLM prompts: Need to make much better prompts to improve result gathering, and also translate to chinese
+
 def main():
+    # Pseudo frontend for now in the terminal
+    # Allows the user to either enter links for now or use search terms to grab sites
     print("Welcome to the General News Article Scraper (trafilatura + Playwright fallback)")
     print("Choose input method:")
     print("  1. Enter news homepage URLs manually")
@@ -69,15 +83,19 @@ def main():
     playwright_count = 0
     html_count = 0
     start_time = time.time()
+    # A triple approach to cover as many articles as possible
+    # In my testing so far trafilatura captures roughly half successfully, HTML captures 40% of what's left, and playwright covers 40% of what's left after, so about 80% of all links it can capture
+    # However none of the solutions can overcome anti bot verifications
     for url, n in zip(urls, num_articles):
         print(f"\n[SCRAPE] {url} (max {n} usable articles)...")
         usable_events = []
         used_trafilatura = 0
         used_html = 0
         used_playwright = 0
-        # Try trafilatura first
+        # Here I use trafilatura first because it takes the least time and file size
         try:
             events = crawler.extract_articles(url, max_articles=n*3)  # Fetch more to allow for filtering
+            # Filter out all content below 200 characters (non-articles)
             filtered = [event for event in events if event.get('content') and len(event['content'].strip()) >= 200 and event.get('headline') and len(event['headline'].strip()) > 0]
             for event in filtered:
                 if len(usable_events) >= n:
@@ -88,6 +106,7 @@ def main():
             print(f"[ERROR] Trafilatura failed for {url}: {e}")
         if len(usable_events) < n:
             print(f"[INFO] Trafilatura found {len(usable_events)} usable articles for {url}, trying HTML fallback...")
+            #try HTML next because it is the second fastest, although needs to download files
             try:
                 events = html_fallback_crawler.extract_articles(url, max_articles=(n-len(usable_events))*3, html_dir=HTML_DIR)
                 filtered = [event for event in events if event.get('content') and len(event['content'].strip()) >= 200 and event.get('headline') and len(event['headline'].strip()) > 0]
@@ -98,6 +117,8 @@ def main():
                     used_html += 1
             except Exception as e:
                 print(f"[ERROR] HTML fallback failed for {url}: {e}")
+        # Next is playwright, which with headless mode off opens a physical page using chromium, which simulates a real human more than the other methods, which bypasses SOME anti-scraper measures
+        # This is the slowest, and will not work without a GUI on cloud networks
         if len(usable_events) < n:
             print(f"[INFO] Trafilatura and HTML fallback found {len(usable_events)} usable articles for {url}, trying Playwright...")
             try:
@@ -111,16 +132,17 @@ def main():
                     used_playwright += 1
             except Exception as e:
                 print(f"[ERROR] Playwright failed for {url}: {e}")
+        # Track effectiveness of each method for future improvements and debugging
         trafilatura_count += used_trafilatura
         html_count += used_html
         playwright_count += used_playwright
         all_events.extend(usable_events[:n])
     print(f"\n[SCRAPE] Total articles extracted from all sites: {len(all_events)}")
-    # Filter out short or empty articles (e.g., content < 200 chars or missing headline/content)
     filtered_events = []
     short_or_empty_count = 0
     per_site_counts = []
     idx = 0
+    # Track filtering statistics
     for url, n in zip(urls, num_articles):
         site_events = all_events[idx:idx+n]
         site_filtered = [
@@ -132,6 +154,7 @@ def main():
         short_or_empty_count += cut_count
         per_site_counts.append((url, len(site_events), len(site_filtered), cut_count))
         idx += n
+    # Reporting to user, could improve with propper logging in future
     print(f"[SCRAPE] Articles after filtering short/empty content: {len(filtered_events)}")
     print(f"[SCRAPE] Filtered out {short_or_empty_count} articles for being too short or empty.")
     print("[SCRAPE] Per-site extraction summary:")
