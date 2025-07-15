@@ -4,11 +4,11 @@ A modular Python tool for scraping news articles and analyzing sentiment using L
 
 ## General Project Structure Map
 
-![Project Structure](struct1.png)
+![Project Structure](images/struct1.png)
 
 ## Architecture
 
-The system consists of two main phases:
+The system consists of two main phases (right now! still in progress):
 
 1. **Web Scraping**: Extracts articles using multiple crawling methods
 2. **LLM Processing**: Analyzes sentiment and generates summaries
@@ -177,6 +177,7 @@ git status  # config.py should not appear
 ## Network Requirements
 
 ### Full Functionality
+- Right now the program is only designed for internal LLM, I will add OpenAI API functionality soon
 - Internet access for web scraping
 - Access to `10.30.15.111:8080` for internal LLM
 - Google Custom Search API access
@@ -198,12 +199,6 @@ python test_processing.py
 python demo_processing.py
 ```
 
-## Cost Estimation
-
-- Internal LLM: Free (if accessible)
-- OpenAI GPT-4o: ~$0.0125 per article
-- Google Search: ~$5 per 1000 queries
-
 ## GitHub Deployment
 
 ### Before Pushing
@@ -224,10 +219,4 @@ python demo_processing.py
 - [SETUP.md](SETUP.md): Deployment guide for new environments
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md): Common issues and solutions
 
-## Contributing
 
-When contributing:
-1. Never commit `config.py` with real API keys
-2. Update `config.example.py` if new keys are needed
-3. Test both real and mock modes
-4. Update documentation for new features
