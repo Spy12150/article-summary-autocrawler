@@ -2,6 +2,10 @@
 
 A modular Python tool for scraping news articles and analyzing sentiment using LLM processing.
 
+## General Project Structure Map
+
+![Project Structure](struct1.png)
+
 ## Architecture
 
 The system consists of two main phases:
@@ -71,7 +75,8 @@ python process_articles.py
 
 ### LLM Processing (Phase 2)
 - Sentiment analysis (positive/neutral/negative)
-- Article summarization (80 words max)
+- Article summarization in Chinese (80 words max)
+- Relevance assessment for Chinese semiconductor marketing executives
 - Retry logic with exponential backoff
 - Mock mode for testing without real LLM endpoint
 - Batch processing with progress tracking
@@ -142,7 +147,8 @@ python process_articles.py \
     "article_url": "https://example.com/article",
     "source_url": "https://example.com",
     "sentiment": "positive",
-    "summary": "Concise summary of the article content...",
+    "summary": "文章内容的简明摘要（中文，最多80字）...",
+    "relevant": "yes",
     "processing_status": "success"
   }
 ]

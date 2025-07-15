@@ -1,7 +1,7 @@
 import json
 import os
 import sys
-from process_articles import load_articles, process_single_article
+from process_articles_sequential import load_articles, process_single_article
 
 """Test script for process_articles.py functionality"""
 

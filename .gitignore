@@ -13,9 +13,9 @@ __pycache__/
 config.py
 
 # Data and downloads (potentially large)
-data/
+
 downloaded_htmls/
-*.json
+
 
 # IDE files
 .vscode/
